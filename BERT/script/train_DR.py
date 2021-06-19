@@ -19,7 +19,8 @@ import random
 import os
 
 TRAIN = "train"
-SPLITS = [TRAIN]
+DEV = "dev"
+SPLITS = [TRAIN, DEV]
 
 def main(args):
     context_path = args.data_dir / "context.json"
@@ -28,7 +29,7 @@ def main(args):
     print(contexts[0])
     data_paths = {split: args.data_dir / f"{split}.json" for split in SPLITS}
     data = {split: json.loads(path.read_text()) for split, path in data_paths.items()}
-    print(data[TRAIN][0]["question"])
+    print(data[TRAIN][0]["question"], data[DEV][0]["question"])
     
     if (args.start_from_last):
         print("load from last...")
@@ -39,10 +40,12 @@ def main(args):
     
     context_tokenized = tokenizer(contexts, add_special_tokens=False)
     train_questions_tokenized = tokenizer([train_question["question"] for train_question in data[TRAIN]], add_special_tokens=False)
-    # print(train_questions_tokenized[0])
-    # print(context_tokenized[0].ids, train_questions_tokenized[0].ids)
+    dev_questions_tokenized = tokenizer([dev_question["question"] for dev_question in data[DEV]], add_special_tokens=False)
+    # print(train_questions_tokenized[0], dev_questions_tokenized[0], test_questions_tokenized[0])
+    # print(context_tokenized[0].ids, train_questions_tokenized[0].ids, dev_questions_tokenized[0].ids, test_questions_tokenized[0].ids)
     
     train_set = DR_Dataset(TRAIN, data[TRAIN], train_questions_tokenized, context_tokenized)
+    dev_set = DR_Dataset(DEV, data[DEV], dev_questions_tokenized, context_tokenized)
     train_loader = DataLoader(train_set, batch_size=args.batch_size, shuffle=True)
 
     optimizer = AdamW(DR_Model.parameters(), lr=args.lr)
@@ -52,8 +55,8 @@ def main(args):
     
     best_acc = -1
     for epoch in range(args.num_epoch):
-        train_size = len(train_loader.dataset)
-        print(train_size)
+        train_size, dev_size = len(train_loader.dataset), len(dev_set)
+        print(train_size, dev_size)
         DR_Model.train()
         train_loss = train_acc = 0
         start_time = time.time()
@@ -78,25 +81,25 @@ def main(args):
             # Print training loss and accuracy over past logging step
             if i % args.logging_step == 0 and i != 0:
                 print(f"Epoch {epoch + 1}/{args.num_epoch} | loss = {train_loss.item() / args.logging_step:.3f}, acc = {train_acc / args.logging_step:.3f} lr = {optimizer.param_groups[0]['lr']:.6f}")
-                train_loss = train_acc = 0
-                DR_Model.eval()
-                with torch.no_grad():
-                    dev_acc = 0
-                    randomlist = random.sample(range(0, len(dev_set)), len(dev_set) // 2)
-                    dev_subset = Subset(dev_set, randomlist)
-                    dev_loader = DataLoader(dev_subset, batch_size=4, shuffle=False)
-                    for i, datas in enumerate(dev_loader):
-                        datas = [data.to(device) for data in datas]
-                        output = DR_Model(input_ids=datas[0], token_type_ids=datas[1], attention_mask=datas[2], labels=datas[3])
-                        dev_acc += (torch.argmax(output.logits, dim=1)==datas[3]).float().mean() / len(dev_loader)
-                        print(f"Validation | Steps {i}/{len(dev_loader)} | acc = {dev_acc:.3f}", end="\r")
-                        # break
-                    print(f"Validation | Steps {i}/{len(dev_loader)} | acc = {dev_acc:.3f}")
-                    if (dev_acc >= best_acc):
-                        print("Saving model...with acc: {}".format(dev_acc))
-                        best_acc = dev_acc
-                        DR_Model.save_pretrained(args.ckpt_dir)
-                # break
+                # train_loss = train_acc = 0
+                # DR_Model.eval()
+                # with torch.no_grad():
+                #     dev_acc = 0
+                #     randomlist = random.sample(range(0, len(dev_set)), len(dev_set) // 1)
+                #     dev_subset = Subset(dev_set, randomlist)
+                #     dev_loader = DataLoader(dev_subset, batch_size=4, shuffle=False)
+                #     for i, datas in enumerate(dev_loader):
+                #         datas = [data.to(device) for data in datas]
+                #         output = DR_Model(input_ids=datas[0], token_type_ids=datas[1], attention_mask=datas[2], labels=datas[3])
+                #         dev_acc += (torch.argmax(output.logits, dim=1)==datas[3]).float().mean() / len(dev_loader)
+                #         print(f"Validation | Steps {i}/{len(dev_loader)} | acc = {dev_acc:.3f}", end="\r")
+                #         # break
+                #     print(f"Validation | Steps {i}/{len(dev_loader)} | acc = {dev_acc:.3f}")
+                #     if (dev_acc >= best_acc):
+                #         print("Saving model...with acc: {}".format(dev_acc))
+                #         best_acc = dev_acc
+                #         DR_Model.save_pretrained(args.ckpt_dir)
+                # # break
 
             DR_Model.train()
 

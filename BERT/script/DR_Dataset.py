@@ -21,20 +21,20 @@ class DR_Dataset(Dataset):
     def __getitem__(self, index):
         question = self.questions[index]
         question_ID = question["id"]
-        related_IDs = list(range(self.num_choices))
+        related_IDs = question["paragraphs"]
         tokenized_question = self.tokenized_questions[index]
         tokenized_paragraph = [""]*self.num_choices
-        print("related len:", len(related_IDs))
-        print("tokenized_paragraph len:", len(tokenized_paragraph))
+        # print("related len", len(related_IDs))
+        # print("tokenized_paragraph len", len(tokenized_paragraph))
         for i, paragraph in enumerate(related_IDs):
             tokenized_paragraph[i] = self.tokenized_paragraphs[paragraph]
         # print("question_ID", question_ID)
         # print("related ID", related_IDs)
 
-        if self.split == "train":
+        if self.split == "train" or self.split == "dev":
             relevant = question["relevant"]
             # print(related_IDs)
-            label = 0
+            label = related_IDs.index(relevant)
             # print(question['question'], relevant, label)
             # Slice question/paragraph and add special tokens (101: CLS, 102: SEP)
             input_ids_question = [101] + tokenized_question.ids[:self.max_question_len] + [102] 
@@ -47,7 +47,7 @@ class DR_Dataset(Dataset):
             # print(input_ids.shape, token_type_ids.shape, attention_mask.shape)
             return input_ids, token_type_ids, attention_mask, label
 
-        # Validation/Testing
+        # Testing
         else:
             # Slice question/paragraph and add special tokens (101: CLS, 102: SEP)
             input_ids_question = [101] + tokenized_question.ids[:self.max_question_len] + [102] 
