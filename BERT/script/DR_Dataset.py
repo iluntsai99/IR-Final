@@ -2,15 +2,15 @@ from torch.utils.data import DataLoader, Dataset, ConcatDataset
 import random
 import torch
 
-class CS_Dataset(Dataset):
+class DR_Dataset(Dataset):
     def __init__(self, split, questions, tokenized_questions, tokenized_paragraphs):
         self.split = split
         self.questions = questions
         self.tokenized_questions = tokenized_questions
         self.tokenized_paragraphs = tokenized_paragraphs
-        self.num_choices = 7
-        self.max_question_len = 40
-        self.max_paragraph_len = 469
+        self.num_choices = 300
+        self.max_question_len = 20
+        self.max_paragraph_len = 20
 
         # Input sequence length = [CLS] + question + [SEP] + paragraph + [SEP]
         self.max_seq_len = 1 + self.max_question_len + 1 + self.max_paragraph_len + 1
@@ -21,20 +21,20 @@ class CS_Dataset(Dataset):
     def __getitem__(self, index):
         question = self.questions[index]
         question_ID = question["id"]
-        related_IDs = question["paragraphs"]
+        related_IDs = list(range(self.num_choices))
         tokenized_question = self.tokenized_questions[index]
-        tokenized_paragraph = [""]*7
-        # print("related len", len(related_IDs))
-        # print("tokenized_paragraph len", len(tokenized_paragraph))
+        tokenized_paragraph = [""]*self.num_choices
+        print("related len:", len(related_IDs))
+        print("tokenized_paragraph len:", len(tokenized_paragraph))
         for i, paragraph in enumerate(related_IDs):
             tokenized_paragraph[i] = self.tokenized_paragraphs[paragraph]
         # print("question_ID", question_ID)
         # print("related ID", related_IDs)
 
-        if self.split == "train" or self.split == "public":
+        if self.split == "train":
             relevant = question["relevant"]
             # print(related_IDs)
-            label = related_IDs.index(relevant)
+            label = 0
             # print(question['question'], relevant, label)
             # Slice question/paragraph and add special tokens (101: CLS, 102: SEP)
             input_ids_question = [101] + tokenized_question.ids[:self.max_question_len] + [102] 
