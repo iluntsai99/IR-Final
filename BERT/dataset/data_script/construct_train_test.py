@@ -45,7 +45,7 @@ test_list = list()
 for question in questions_list[10:]:
 	all_doc = list(range(len(doc2label)))
 	n_paragraphs = chunkIt(all_doc, 300)
-	query_id = question["id"]
+	query_id = question["id"].split("ZH")[1]
 	question = question["question"]
 	for paragraphs in n_paragraphs:
 		test_dic = dict()
