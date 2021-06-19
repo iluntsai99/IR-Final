@@ -1,4 +1,5 @@
 import json
+from os import chdir
 import numpy as np
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
@@ -12,13 +13,12 @@ from transformers import AdamW, BertForQuestionAnswering, BertTokenizerFast, Ber
 from transformers import get_linear_schedule_with_warmup
 
 import utils
-from QA_Dataset import QA_Dataset
-from CS_Dataset import CS_Dataset
+from DR_Dataset import DR_Dataset
 from accelerate import Accelerator
 import time
-from utils import evaluate
+from utils import eval
 
-TEST = "public"
+TEST = "test"
 
 def main(args):
     SPLITS = [TEST]
@@ -27,40 +27,52 @@ def main(args):
     data_paths = {split: args.data_path for split in SPLITS}
     data = {split: json.loads(path.read_text()) for split, path in data_paths.items()}
     
-    CS_Model = BertForMultipleChoice.from_pretrained(args.ckpt_CS_dir).to(device)
-    QA_model = BertForQuestionAnswering.from_pretrained(args.ckpt_QA_dir).to(device)
+    DR_Model = BertForMultipleChoice.from_pretrained(args.ckpt_DR_dir).to(device)
     tokenizer = BertTokenizerFast.from_pretrained("bert-base-chinese")
     
     context_tokenized = tokenizer(contexts, add_special_tokens=False)
     test_questions_tokenized = tokenizer([test_question["question"] for test_question in data[TEST]], add_special_tokens=False)
-    test_CS_set = CS_Dataset(TEST, data[TEST], test_questions_tokenized, context_tokenized)
-    test_CS_loader = DataLoader(test_CS_set, batch_size=1, shuffle=False)
+    test_DR_set = DR_Dataset(TEST, data[TEST], test_questions_tokenized, context_tokenized)
+    test_DR_loader = DataLoader(test_DR_set, batch_size=1, shuffle=False)
 
-    CS_Model.eval()
-    with torch.no_grad():
-        for i, datas in enumerate(tqdm(test_CS_loader)):
-            output = CS_Model(input_ids=datas[0].to(device), token_type_ids=datas[1].to(device), attention_mask=datas[2].to(device))
-            document = torch.argmax(output.logits, dim=1)
-            if document >= len(data[TEST][i]["paragraphs"]):
-                document = len(data[TEST][i]["paragraphs"]) - 1
-            data[TEST][i]["relevant"] = data[TEST][i]["paragraphs"][document]
-    
-    QA_model.eval()
-    test_QA_set = QA_Dataset(TEST, data[TEST], test_questions_tokenized, context_tokenized)
-    test_QA_loader = DataLoader(test_QA_set, batch_size=1, shuffle=False)
-    with torch.no_grad():
-        result = dict()
-        for i, datas in enumerate(tqdm(test_QA_loader)):
-            output = QA_model(input_ids=datas[0].squeeze(dim=0).to(device), token_type_ids=datas[1].squeeze(dim=0).to(device),
-                        attention_mask=datas[2].squeeze(dim=0).to(device))
-            paragraph_id = data[TEST][i]["id"]
-            relevant = data[TEST][i]["relevant"]
-            result[paragraph_id] = evaluate(datas, output, context_tokenized[relevant], contexts[relevant])
+    with open("../dataset/model/label2file.json", "r") as f:
+	    label2file = json.load(f)
 
-    result_file = args.pred_path
-    with open(result_file, 'w', encoding='utf-8') as f:	
-        json.dump(result, f, ensure_ascii=False)
-    print(f"Completed! Result is in {result_file}")
+    DR_Model.eval()
+    with torch.no_grad():
+        id, predictions = list(), list()
+        prev_id = ""
+        cur_id, rank = 0, 0
+        for i, datas in enumerate(tqdm(test_DR_loader)):
+            output = DR_Model(input_ids=datas[0].to(device), token_type_ids=datas[1].to(device), attention_mask=datas[2].to(device))
+            cur_id = datas[3][0]
+            if cur_id != prev_id:
+                print(cur_id)
+                if prev_id != "":
+                    _, relevant_documents = torch.topk(rank, k=110, dim=1)
+                    id.append(prev_id)
+                    relevant_documents = relevant_documents.squeeze().detach().tolist()
+                    relevant_documents[:] = [rel for rel in relevant_documents if rel < len(label2file)]
+                    predictions.append([label2file[str(label)] for label in relevant_documents])
+                rank = output.logits
+                prev_id = cur_id
+            else:
+                rank = torch.cat((rank, output.logits), dim=1)
+        # for last query
+        _, relevant_documents = torch.topk(rank, k=150, dim=1)
+        id.append(prev_id)
+        relevant_documents = relevant_documents.squeeze().detach().tolist()
+        relevant_documents[:] = [rel for rel in relevant_documents if rel < len(label2file)]
+        predictions.append([label2file[str(label)] for label in relevant_documents])
+
+    with open(args.ranked_list, 'w') as f:
+        print("Writing result to {}".format(args.ranked_list))
+        f.write("query_id,retrieved_docs\n")
+        for i, prediction in enumerate(predictions):
+            print(id)
+            print(prediction)
+            f.write("{},{}\n".format(id[i], " ".join(prediction)))
+    print(f"Completed! Result is in {args.ranked_list}")
 
 
 def parse_args() -> Namespace:
@@ -71,16 +83,10 @@ def parse_args() -> Namespace:
         help="Directory to the dataset.",
     )
     parser.add_argument(
-        "--ckpt_CS_dir",
+        "--ckpt_DR_dir",
         type=Path,
         help="Directory to save the model file.",
-        default="./ckpt/ckpt_CS",
-    )
-    parser.add_argument(
-        "--ckpt_QA_dir",
-        type=Path,
-        help="Directory to save the model file.",
-        default="./ckpt/ckpt_QA",
+        default="./ckpt/",
     )
     parser.add_argument(
         "--data_path",
@@ -88,7 +94,7 @@ def parse_args() -> Namespace:
         help="Public or private",
     )
     parser.add_argument(
-        "--pred_path",
+        "--ranked_list",
         type=Path,
         help="Prediction file",
     )
@@ -101,6 +107,4 @@ if __name__ == "__main__":
     utils.same_seeds(0)
     device = "cuda" if torch.cuda.is_available() else "cpu"
     args = parse_args()
-    if "private" in str(args.data_path):
-        TEST = "private"
     main(args)

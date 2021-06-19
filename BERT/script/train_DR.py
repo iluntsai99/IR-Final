@@ -26,10 +26,10 @@ def main(args):
     context_path = args.data_dir / "context.json"
     contexts = json.loads(context_path.read_text())
     contexts = [context for context in contexts]
-    print(contexts[0])
+    # print(contexts[0])
     data_paths = {split: args.data_dir / f"{split}.json" for split in SPLITS}
     data = {split: json.loads(path.read_text()) for split, path in data_paths.items()}
-    print(data[TRAIN][0]["question"], data[DEV][0]["question"])
+    # print(data[TRAIN][0]["question"], data[DEV][0]["question"])
     
     if (args.start_from_last):
         print("load from last...")
@@ -81,25 +81,25 @@ def main(args):
             # Print training loss and accuracy over past logging step
             if i % args.logging_step == 0 and i != 0:
                 print(f"Epoch {epoch + 1}/{args.num_epoch} | loss = {train_loss.item() / args.logging_step:.3f}, acc = {train_acc / args.logging_step:.3f} lr = {optimizer.param_groups[0]['lr']:.6f}")
-                # train_loss = train_acc = 0
-                # DR_Model.eval()
-                # with torch.no_grad():
-                #     dev_acc = 0
-                #     randomlist = random.sample(range(0, len(dev_set)), len(dev_set) // 1)
-                #     dev_subset = Subset(dev_set, randomlist)
-                #     dev_loader = DataLoader(dev_subset, batch_size=4, shuffle=False)
-                #     for i, datas in enumerate(dev_loader):
-                #         datas = [data.to(device) for data in datas]
-                #         output = DR_Model(input_ids=datas[0], token_type_ids=datas[1], attention_mask=datas[2], labels=datas[3])
-                #         dev_acc += (torch.argmax(output.logits, dim=1)==datas[3]).float().mean() / len(dev_loader)
-                #         print(f"Validation | Steps {i}/{len(dev_loader)} | acc = {dev_acc:.3f}", end="\r")
-                #         # break
-                #     print(f"Validation | Steps {i}/{len(dev_loader)} | acc = {dev_acc:.3f}")
-                #     if (dev_acc >= best_acc):
-                #         print("Saving model...with acc: {}".format(dev_acc))
-                #         best_acc = dev_acc
-                #         DR_Model.save_pretrained(args.ckpt_dir)
-                # # break
+                train_loss = train_acc = 0
+                DR_Model.eval()
+                with torch.no_grad():
+                    dev_acc = 0
+                    randomlist = random.sample(range(0, len(dev_set)), len(dev_set) // 1)
+                    dev_subset = Subset(dev_set, randomlist)
+                    dev_loader = DataLoader(dev_subset, batch_size=1, shuffle=False)
+                    for i, datas in enumerate(dev_loader):
+                        datas = [data.to(device) for data in datas]
+                        output = DR_Model(input_ids=datas[0], token_type_ids=datas[1], attention_mask=datas[2], labels=datas[3])
+                        dev_acc += (torch.argmax(output.logits, dim=1)==datas[3]).float().mean() / len(dev_loader)
+                        print(f"Validation | Steps {i}/{len(dev_loader)} | acc = {dev_acc:.3f}", end="\r")
+                        # break
+                    print(f"Validation | Steps {i}/{len(dev_loader)} | acc = {dev_acc:.3f}")
+                    if (dev_acc >= best_acc):
+                        print("Saving model...with acc: {}".format(dev_acc))
+                        best_acc = dev_acc
+                        DR_Model.save_pretrained(args.ckpt_dir)
+                # break
 
             DR_Model.train()
 
@@ -127,9 +127,9 @@ def parse_args() -> Namespace:
 
     # training
     parser.add_argument("--start_from_last", action="store_true")
-    parser.add_argument("--num_epoch", type=int, default=2)
+    parser.add_argument("--num_epoch", type=int, default=3)
     parser.add_argument("--gradient_accumulation_step", type=int, default=40)
-    parser.add_argument("--logging_step", type=int, default=800)
+    parser.add_argument("--logging_step", type=int, default=871)
 
     args = parser.parse_args()
     return args

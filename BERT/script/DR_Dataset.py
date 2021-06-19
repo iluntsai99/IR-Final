@@ -8,9 +8,14 @@ class DR_Dataset(Dataset):
         self.questions = questions
         self.tokenized_questions = tokenized_questions
         self.tokenized_paragraphs = tokenized_paragraphs
-        self.num_choices = 300
-        self.max_question_len = 20
-        self.max_paragraph_len = 20
+        if self.split == "train" or "dev":
+            self.num_choices = 300
+            self.max_question_len = 20
+            self.max_paragraph_len = 20
+        else:
+            self.num_choices = 300
+            self.max_question_len = 40
+            self.max_paragraph_len = 160
 
         # Input sequence length = [CLS] + question + [SEP] + paragraph + [SEP]
         self.max_seq_len = 1 + self.max_question_len + 1 + self.max_paragraph_len + 1
@@ -58,7 +63,7 @@ class DR_Dataset(Dataset):
             # Pad sequence and obtain inputs to model
             input_ids, token_type_ids, attention_mask = self.padding(input_ids_question, input_ids_paragraph)
             # print(input_ids.shape, token_type_ids.shape, attention_mask.shape)
-            return input_ids, token_type_ids, attention_mask
+            return input_ids, token_type_ids, attention_mask, question_ID
 
     def padding(self, input_ids_question, input_ids_paragraph):
         input_ids = list()
