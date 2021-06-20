@@ -39,38 +39,48 @@ def main(args):
 	    label2file = json.load(f)
 
     DR_Model.eval()
+    print(args.ranked_list)
     with torch.no_grad():
         id, predictions = list(), list()
         prev_id = ""
         cur_id, rank = 0, 0
+        softmax = torch.nn.Softmax(dim=1)
         for i, datas in enumerate(tqdm(test_DR_loader)):
             output = DR_Model(input_ids=datas[0].to(device), token_type_ids=datas[1].to(device), attention_mask=datas[2].to(device))
             cur_id = datas[3][0]
             if cur_id != prev_id:
-                print(cur_id)
                 if prev_id != "":
-                    _, relevant_documents = torch.topk(rank, k=110, dim=1)
+                    prob, relevant_documents = torch.topk(rank, k=110, dim=1)
+                    # print(prob)
+                    # print(relevant_documents)
+                    # print(prob.shape, relevant_documents.shape)
                     id.append(prev_id)
-                    relevant_documents = relevant_documents.squeeze().detach().tolist()
+                    relevant_documents = torch.reshape((relevant_documents), (-1,))
+                    relevant_documents = relevant_documents.detach().tolist()
                     relevant_documents[:] = [rel for rel in relevant_documents if rel < len(label2file)]
-                    predictions.append([label2file[str(label)] for label in relevant_documents])
-                rank = output.logits
+                    prediction = [label2file[str(label)] for label in relevant_documents]
+                    predictions.append(prediction)
+                    # print(prediction)
+                    print(prev_id, len(prediction))
+                
+                rank = softmax(output.logits)
                 prev_id = cur_id
             else:
-                rank = torch.cat((rank, output.logits), dim=1)
+                rank = torch.cat((rank, softmax(output.logits)), dim=1)
         # for last query
-        _, relevant_documents = torch.topk(rank, k=150, dim=1)
+        _, relevant_documents = torch.topk(rank, k=110, dim=1)
         id.append(prev_id)
-        relevant_documents = relevant_documents.squeeze().detach().tolist()
+        relevant_documents = torch.reshape((relevant_documents), (-1,))
+        relevant_documents = relevant_documents.detach().tolist()
         relevant_documents[:] = [rel for rel in relevant_documents if rel < len(label2file)]
-        predictions.append([label2file[str(label)] for label in relevant_documents])
+        prediction = [label2file[str(label)] for label in relevant_documents]
+        predictions.append(prediction)
+        print(prev_id, len(prediction))
 
     with open(args.ranked_list, 'w') as f:
         print("Writing result to {}".format(args.ranked_list))
         f.write("query_id,retrieved_docs\n")
         for i, prediction in enumerate(predictions):
-            print(id)
-            print(prediction)
             f.write("{},{}\n".format(id[i], " ".join(prediction)))
     print(f"Completed! Result is in {args.ranked_list}")
 
