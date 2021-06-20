@@ -24,6 +24,7 @@ def main(args):
     SPLITS = [TEST]
     context_path = args.context_path
     contexts = json.loads(context_path.read_text())
+    print(contexts[0])
     data_paths = {split: args.data_path for split in SPLITS}
     data = {split: json.loads(path.read_text()) for split, path in data_paths.items()}
     
@@ -44,13 +45,13 @@ def main(args):
         id, predictions = list(), list()
         prev_id = ""
         cur_id, rank = 0, 0
-        softmax = torch.nn.Softmax(dim=1)
+        # softmax = torch.nn.Softmax(dim=1)
         for i, datas in enumerate(tqdm(test_DR_loader)):
             output = DR_Model(input_ids=datas[0].to(device), token_type_ids=datas[1].to(device), attention_mask=datas[2].to(device))
             cur_id = datas[3][0]
             if cur_id != prev_id:
                 if prev_id != "":
-                    prob, relevant_documents = torch.topk(rank, k=110, dim=1)
+                    prob, relevant_documents = torch.topk(rank, k=120, dim=1)
                     # print(prob)
                     # print(relevant_documents)
                     # print(prob.shape, relevant_documents.shape)
@@ -59,16 +60,19 @@ def main(args):
                     relevant_documents = relevant_documents.detach().tolist()
                     relevant_documents[:] = [rel for rel in relevant_documents if rel < len(label2file)]
                     prediction = [label2file[str(label)] for label in relevant_documents]
+                    print("question:", data[TEST][i-1]["question"])
+                    for j in range(5):
+                        print("document:", prediction[j], contexts[relevant_documents[j]])
                     predictions.append(prediction)
                     # print(prediction)
                     print(prev_id, len(prediction))
                 
-                rank = softmax(output.logits)
+                rank = output.logits
                 prev_id = cur_id
             else:
-                rank = torch.cat((rank, softmax(output.logits)), dim=1)
+                rank = torch.cat((rank, output.logits), dim=1)
         # for last query
-        _, relevant_documents = torch.topk(rank, k=110, dim=1)
+        _, relevant_documents = torch.topk(rank, k=120, dim=1)
         id.append(prev_id)
         relevant_documents = torch.reshape((relevant_documents), (-1,))
         relevant_documents = relevant_documents.detach().tolist()

@@ -14,8 +14,8 @@ class DR_Dataset(Dataset):
             self.max_paragraph_len = 20
         else:
             self.num_choices = 300
-            self.max_question_len = 40
-            self.max_paragraph_len = 160
+            self.max_question_len = 64
+            self.max_paragraph_len = 300
 
         # Input sequence length = [CLS] + question + [SEP] + paragraph + [SEP]
         self.max_seq_len = 1 + self.max_question_len + 1 + self.max_paragraph_len + 1
@@ -57,7 +57,7 @@ class DR_Dataset(Dataset):
             # Slice question/paragraph and add special tokens (101: CLS, 102: SEP)
             input_ids_question = [101] + tokenized_question.ids[:self.max_question_len] + [102] 
             input_ids_paragraph = list()
-            for i in range(self.num_choices):
+            for i in range(len(related_IDs)):
                 input_ids_paragraph += [tokenized_paragraph[i].ids[:self.max_paragraph_len] + [102]] if i < len(related_IDs) else [[]]
             
             # Pad sequence and obtain inputs to model

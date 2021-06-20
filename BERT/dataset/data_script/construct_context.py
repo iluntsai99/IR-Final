@@ -18,7 +18,17 @@ for key, value in label.items():
 		except:
 			title = ""
 		text = doc.find("text")
-		p1 = text.find('p').text.strip().split("。")[0]
-		context.append("。".join([title, p1]).replace("相關文件內容", "").replace("包括", "").replace("應", "").replace("說明", "").replace("應說明", "").replace("查詢", ""))
+		tag_ps = text.findall('p')
+		paragraph_count = 0
+		ps = [""]*len(tag_ps)
+		for i, p in enumerate(tag_ps):
+			ps[i] = p.text.strip().split("。")[0]
+			start = ps[i].find('【')
+			if start != -1:
+				end = ps[i].find('】')
+				ps[i] = ps[i][:start] + ps[i][end+1:]
+		doc = [title] + ps
+		context.append("。".join(doc).replace("相關文件內容", "").replace("包括", "").replace("應", "").replace("說明", "").replace("應說明", "").replace("查詢", "").replace("\n", "").replace(" ", "，"))
+
 with open("../model/context.json", "w") as f:
 	json.dump(context, f, indent=2)

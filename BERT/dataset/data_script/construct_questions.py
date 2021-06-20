@@ -10,9 +10,9 @@ with open("../queries/query-train.xml", 'r', encoding="utf-8") as xml_f:
 	topic_list = Qroot.findall("topic")
 	for topic in topic_list:
 		queryID = topic.find("number").text.strip()
-		# title = topic.find("title").text.strip()
+		title = topic.find("title").text.strip()
 		question = topic.find("question").text.strip().replace("。", "？")
-		question = "，".join([question]).replace("相關文件內容", "").replace("包括", "").replace("應", "").replace("說明", "").replace("應說明", "").replace("查詢", "")
+		question = "，".join([question, title]).replace("相關文件內容", "").replace("包括", "").replace("應", "").replace("說明", "").replace("應說明", "").replace("查詢", "")
 		query_dic = dict()
 		query_dic["id"] = queryID
 		query_dic["question"] = question
@@ -24,9 +24,9 @@ with open("../queries/query-test.xml", 'r', encoding="utf-8") as xml_f:
 	topic_list = Qroot.findall("topic")
 	for topic in topic_list:
 		queryID = topic.find("number").text.strip()
-		# title = topic.find("title").text.strip()
+		title = topic.find("title").text.strip()
 		question = topic.find("question").text.strip().replace("。", "？")
-		question = "，".join([question]).replace("相關文件內容", "").replace("包括", "").replace("應", "").replace("說明", "").replace("應說明", "").replace("查詢", "")
+		question = "，".join([question, title]).replace("相關文件內容", "").replace("包括", "").replace("應", "").replace("說明", "").replace("應說明", "").replace("查詢", "")
 		query_dic = dict()
 		query_dic["id"] = queryID
 		query_dic["question"] = question

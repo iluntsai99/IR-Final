@@ -26,10 +26,10 @@ def main(args):
     context_path = args.data_dir / "context.json"
     contexts = json.loads(context_path.read_text())
     contexts = [context for context in contexts]
-    # print(contexts[0])
+    print(contexts[0])
     data_paths = {split: args.data_dir / f"{split}.json" for split in SPLITS}
     data = {split: json.loads(path.read_text()) for split, path in data_paths.items()}
-    # print(data[TRAIN][0]["question"], data[DEV][0]["question"])
+    print(data[TRAIN][0]["question"], data[DEV][0]["question"])
     
     if (args.start_from_last):
         print("load from last...")
