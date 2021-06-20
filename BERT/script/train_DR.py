@@ -127,15 +127,15 @@ def parse_args() -> Namespace:
 
     # training
     parser.add_argument("--start_from_last", action="store_true")
-    parser.add_argument("--num_epoch", type=int, default=3)
+    parser.add_argument("--num_epoch", type=int, default=2)
     parser.add_argument("--gradient_accumulation_step", type=int, default=40)
-    parser.add_argument("--logging_step", type=int, default=871)
+    parser.add_argument("--logging_step", type=int, default=2000)
 
     args = parser.parse_args()
     return args
 
 if __name__ == "__main__":
-    utils.same_seeds(19991210)
+    utils.same_seeds(6396969)
     fp16_training = True
     if fp16_training:
         accelerator = Accelerator(fp16=True)

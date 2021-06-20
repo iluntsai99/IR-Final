@@ -2,6 +2,4 @@
 
 BERT/ckpt/
 BERT/dataset/model/context.json
-BERT/script/log/
 BERT/script/__pycache__/
-BERT/script/log.txt

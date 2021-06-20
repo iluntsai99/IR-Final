@@ -6,6 +6,7 @@ import random
 from tqdm import tqdm
 
 random.seed(0)
+chunk = 200
 with open("../model/questions.json", "r") as f:
 	questions_list = json.load(f)
 with open("../model/file2relevant.json", "r") as f:
@@ -21,7 +22,7 @@ with open('../queries/ans_train.csv', newline='') as csvfile:
 		question = questions_list[i - 1]["question"]
 		relevents = query[1].split(" ")
 		relevent_set = set(relevents)
-		weight = list(range(100, 0, -5))
+		weight = list(range(100, 0, -4))
 		weight += [1]*(len(relevents) - len(weight))
 		# print(len(relevents))
 		new_relevants = list()
@@ -31,7 +32,7 @@ with open('../queries/ans_train.csv', newline='') as csvfile:
 		# print(len(new_relevants))
 		all_doc = set(range(len(doc2label)))
 		for rel in new_relevants:
-			paragraphs = random.sample(all_doc - relevent_set, 299)
+			paragraphs = random.sample(all_doc - relevent_set, chunk-1)
 			paragraphs.append(rel)
 			random.shuffle(paragraphs)
 			train_dic = dict()
@@ -52,7 +53,7 @@ def chunkIt(seq, num):
 test_list = list()
 for question in questions_list[10:]:
 	all_doc = list(range(len(doc2label)))
-	n_paragraphs = chunkIt(all_doc, 300)
+	n_paragraphs = chunkIt(all_doc, chunk)
 	query_id = question["id"].split("ZH")[1]
 	question = question["question"]
 	for paragraphs in n_paragraphs:
@@ -63,7 +64,7 @@ for question in questions_list[10:]:
 		test_list.append(test_dic)
 
 random.shuffle(train_data)
-train_size = int(len(train_data)*9/10)
+train_size = int(len(train_data)*19/20)
 train_list = train_data[:train_size]
 dev_list = train_data[train_size:]
 print(len(train_list), len(dev_list), len(test_list))

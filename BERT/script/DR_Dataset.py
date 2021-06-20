@@ -8,14 +8,13 @@ class DR_Dataset(Dataset):
         self.questions = questions
         self.tokenized_questions = tokenized_questions
         self.tokenized_paragraphs = tokenized_paragraphs
+        self.num_choices = 200
         if self.split == "train" or "dev":
-            self.num_choices = 300
-            self.max_question_len = 20
-            self.max_paragraph_len = 20
+            self.max_question_len = 30
+            self.max_paragraph_len = 34
         else:
-            self.num_choices = 300
             self.max_question_len = 64
-            self.max_paragraph_len = 300
+            self.max_paragraph_len = 445
 
         # Input sequence length = [CLS] + question + [SEP] + paragraph + [SEP]
         self.max_seq_len = 1 + self.max_question_len + 1 + self.max_paragraph_len + 1
