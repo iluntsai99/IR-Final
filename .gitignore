@@ -1,5 +1,13 @@
 # 檔案名稱 .gitignore
 
-BERT/ckpt/
-BERT/dataset/model/context.json
-BERT/script/__pycache__/
+BERT/NTCIR/ckpt/
+BERT/NTCIR/dataset/model/context.json
+BERT/NTCIR/script/__pycache__/
+
+BERT/TREC/ckpt/
+BERT/TREC/dataset/model/context.json
+BERT/TREC/script/__pycache__/
+BERT/TREC/data/corpus
+BERT/TREC/data/train
+BERT/TREC/data/dev
+BERT/TREC/data/test
