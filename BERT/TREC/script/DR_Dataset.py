@@ -31,6 +31,7 @@ class DR_Dataset(Dataset):
         # print("related len", len(related_IDs))
         # print("tokenized_paragraph len", len(tokenized_paragraph))
         for i, paragraph in enumerate(related_IDs):
+            # print(i, paragraph)
             tokenized_paragraph[i] = self.tokenized_paragraphs[paragraph]
         # print("question_ID", question_ID)
         # print("related ID", related_IDs)

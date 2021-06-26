@@ -1,34 +1,59 @@
-from pathlib import Path
+import csv
+import io
 import os
+import sys
+import numpy as np
 import json
-import xml.etree.ElementTree as ET
+from tqdm import tqdm
+import pickle
+from unidecode import unidecode
 
-with open("../model/file2label.json", "r") as f:
-	label = json.load(f)
-# print(label)
+def getcontent(docid, f):
+    """getcontent(docid, f) will get content for a given docid (a string) from filehandle f.
+    The content has four tab-separated strings: docid, url, title, body.
+    """
+
+    f.seek(docoffset[docid])
+    line = f.readline()
+    assert line.startswith(docid + "\t"), \
+        f"Looking for {docid}, found {line}"
+    line = line.strip().split("\t")
+    return line
+
+dir_path = "../../"
+# In the corpus tsv, each docid occurs at offset docoffset[docid]
+docoffset = {}
+with open(os.path.join(dir_path, "data/corpus/msmarco-docs-lookup.tsv"), encoding='utf8') as f:
+    tsvreader = csv.reader(f, delimiter="\t")
+    for [docid, _, offset] in tsvreader:
+        docoffset[docid] = int(offset)
 
 context = []
-for key, value in label.items():
-	with open(f"../CIRB010" / Path(key), 'r', encoding="utf-8") as xml_f:
-		document = ET.parse(xml_f)
-		Droot = document.getroot()
-		doc = Droot.find("doc")
-		try:
-			title = doc.find("title").text.strip()
-		except:
-			title = ""
-		text = doc.find("text")
-		tag_ps = text.findall('p')
-		paragraph_count = 0
-		ps = [""]*len(tag_ps)
-		for i, p in enumerate(tag_ps):
-			ps[i] = p.text.strip().split("。")[0]
-			start = ps[i].find('【')
-			if start != -1:
-				end = ps[i].find('】')
-				ps[i] = ps[i][:start] + ps[i][end+1:]
-		doc = [title] + ps
-		context.append("。".join(doc).replace("相關文件內容", "").replace("包括", "").replace("應", "").replace("說明", "").replace("應說明", "").replace("查詢", "").replace("\n", "").replace(" ", "，"))
+with open(os.path.join(dir_path, "data/corpus/msmarco-docs.tsv"), encoding="utf8") as f, \
+        open("../partial/corpus/docIDs") as partialCorpusID_f:
 
+    corpus_reader = csv.reader(f, delimiter="\t")
+    corpusID = list(map(lambda line: line.strip(),
+                        partialCorpusID_f.readlines()))
+    error_doc = list()
+    for i, docid in enumerate(tqdm(corpusID)):
+        line = getcontent(docid, f)
+        # if len(line) != 4:
+        #     continue
+        try:
+            docid, url, title, body = line
+        except:
+            title, body = '', ''
+            error_doc.append(i)
+        # print(docid)
+        # print(url)
+        # print(title)
+        # print(body)
+        clean = unidecode(".".join([title.replace("\n", ""), body.replace("\n", "")])[:1000])
+        context.append(clean)
+
+with open("../model/error_doc.pk", 'wb') as f:
+    pickle.dump(error_doc, f)
+print(len(error_doc))
 with open("../model/context.json", "w") as f:
 	json.dump(context, f, indent=2)

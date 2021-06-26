@@ -1,37 +1,31 @@
 from pathlib import Path
 import os
 import json
-import xml.etree.ElementTree as ET
+import csv
 
-questions_list = list()
-with open("../queries/query-train.xml", 'r', encoding="utf-8") as xml_f:
-	query_file = ET.parse(xml_f)
-	Qroot = query_file.getroot()
-	topic_list = Qroot.findall("topic")
-	for topic in topic_list:
-		queryID = topic.find("number").text.strip()
-		title = topic.find("title").text.strip()
-		question = topic.find("question").text.strip().replace("。", "？")
-		question = "".join([question, title]).replace("相關文件內容", "").replace("包括", "").replace("應", "").replace("說明", "").replace("應說明", "").replace("查詢", "").replace(" ", "")
-		query_dic = dict()
-		query_dic["id"] = queryID
-		query_dic["question"] = question
-		questions_list.append(query_dic)
-print(len(questions_list))
-with open("../queries/query-test.xml", 'r', encoding="utf-8") as xml_f:
-	query_file = ET.parse(xml_f)
-	Qroot = query_file.getroot()
-	topic_list = Qroot.findall("topic")
-	for topic in topic_list:
-		queryID = topic.find("number").text.strip()
-		title = topic.find("title").text.strip()
-		question = topic.find("question").text.strip().replace("。", "？")
-		question = "".join([question, title]).replace("相關文件內容", "").replace("包括", "").replace("應", "").replace("說明", "").replace("應說明", "").replace("查詢", "").replace(" ", "")
-		query_dic = dict()
-		query_dic["id"] = queryID
-		query_dic["question"] = question
-		questions_list.append(query_dic)
-print(len(questions_list))
+train_queries = open("../partial/train/queries.tsv")
+read_tsv = csv.reader(train_queries, delimiter="\t")
+train_question = dict()
+for id, question in read_tsv:
+    train_question[id] = question.strip()
+with open("../model/train_questions.json", "w") as f:
+	json.dump(train_question, f, indent=2)
+print("finish train")
 
-with open("../model/questions.json", "w") as f:
-	json.dump(questions_list, f, indent=2)
+dev_queries = open("../partial/dev/queries.tsv")
+read_tsv = csv.reader(dev_queries, delimiter="\t")
+dev_question = dict()
+for id, question in read_tsv:
+    dev_question[id] = question.strip()
+with open("../model/dev_questions.json", "w") as f:
+	json.dump(dev_question, f, indent=2)
+print("finish dev")
+
+test_queries = open("../partial/test/queries.tsv")
+read_tsv = csv.reader(test_queries, delimiter="\t")
+test_question = dict()
+for id, question in read_tsv:
+    test_question[id] = question.strip()
+with open("../model/test_questions.json", "w") as f:
+	json.dump(test_question, f, indent=2)
+print("finish test")

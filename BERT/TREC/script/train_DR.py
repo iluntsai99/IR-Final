@@ -24,9 +24,10 @@ SPLITS = [TRAIN, DEV]
 
 def main(args):
     context_path = args.data_dir / "context.json"
+    print("loading context...")
     contexts = json.loads(context_path.read_text())
     contexts = [context for context in contexts]
-    print(contexts[0])
+    print(len(contexts), contexts[0])
     data_paths = {split: args.data_dir / f"{split}.json" for split in SPLITS}
     data = {split: json.loads(path.read_text()) for split, path in data_paths.items()}
     print(data[TRAIN][0]["question"], data[DEV][0]["question"])
@@ -35,10 +36,12 @@ def main(args):
         print("load from last...")
         DR_Model = BertForMultipleChoice.from_pretrained(args.ckpt_dir).to(device)
     else:
-        DR_Model = BertForMultipleChoice.from_pretrained("hfl/chinese-macbert-large").to(device)
-    tokenizer = BertTokenizerFast.from_pretrained("bert-base-chinese")
+        DR_Model = BertForMultipleChoice.from_pretrained("bert-base-uncased").to(device)
+    tokenizer = BertTokenizerFast.from_pretrained("bert-base-uncased")
     
+    print("start tokenizing...")
     context_tokenized = tokenizer(contexts, add_special_tokens=False)
+    print(len(context_tokenized))
     train_questions_tokenized = tokenizer([train_question["question"] for train_question in data[TRAIN]], add_special_tokens=False)
     dev_questions_tokenized = tokenizer([dev_question["question"] for dev_question in data[DEV]], add_special_tokens=False)
     # print(train_questions_tokenized[0], dev_questions_tokenized[0], test_questions_tokenized[0])
@@ -53,6 +56,7 @@ def main(args):
     update_step = args.num_epoch * len(train_loader) // args.gradient_accumulation_step + args.num_epoch
     scheduler = get_linear_schedule_with_warmup(optimizer, 0.1 * update_step, update_step)
     
+    print("start training...")
     best_acc = -1
     for epoch in range(args.num_epoch):
         train_size, dev_size = len(train_loader.dataset), len(dev_set)
@@ -85,12 +89,13 @@ def main(args):
                 DR_Model.eval()
                 with torch.no_grad():
                     dev_acc = 0
-                    randomlist = random.sample(range(0, len(dev_set)), len(dev_set) // 1)
+                    randomlist = random.sample(range(0, len(dev_set)), len(dev_set) // 10)
                     dev_subset = Subset(dev_set, randomlist)
                     dev_loader = DataLoader(dev_subset, batch_size=1, shuffle=False)
                     for i, datas in enumerate(dev_loader):
                         datas = [data.to(device) for data in datas]
                         output = DR_Model(input_ids=datas[0], token_type_ids=datas[1], attention_mask=datas[2], labels=datas[3])
+                        # print(torch.argmax(output.logits, dim=1), datas[3])
                         dev_acc += (torch.argmax(output.logits, dim=1)==datas[3]).float().mean() / len(dev_loader)
                         print(f"Validation | Steps {i}/{len(dev_loader)} | acc = {dev_acc:.3f}", end="\r")
                         # break
@@ -127,9 +132,9 @@ def parse_args() -> Namespace:
 
     # training
     parser.add_argument("--start_from_last", action="store_true")
-    parser.add_argument("--num_epoch", type=int, default=2)
+    parser.add_argument("--num_epoch", type=int, default=1)
     parser.add_argument("--gradient_accumulation_step", type=int, default=40)
-    parser.add_argument("--logging_step", type=int, default=2000)
+    parser.add_argument("--logging_step", type=int, default=5000)
 
     args = parser.parse_args()
     return args

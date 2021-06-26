@@ -26,7 +26,6 @@ def chunk(seq):
 def eval(predictions, ground_truth, queLen=10):
     true_list = []
     with open(ground_truth, 'r') as f:
-        f.readline()
         for i in f:
             name, label = i.split(',')
             true_list.append([j for j in label.split()])
@@ -35,6 +34,7 @@ def eval(predictions, ground_truth, queLen=10):
         Map_temp = 0
         match = 0
         for j, k in enumerate(i):
+            # print(idx, j)
             if k in true_list[idx]:
                 match += 1
                 Map_temp += (match / (j + 1))

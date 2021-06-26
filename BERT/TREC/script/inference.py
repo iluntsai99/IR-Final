@@ -17,19 +17,21 @@ from DR_Dataset import DR_Dataset
 from accelerate import Accelerator
 import time
 from utils import eval
+import pickle
 
 TEST = "test"
 
 def main(args):
     SPLITS = [TEST]
     context_path = args.context_path
+    print("loading context...")
     contexts = json.loads(context_path.read_text())
     print(contexts[0])
     data_paths = {split: args.data_path for split in SPLITS}
     data = {split: json.loads(path.read_text()) for split, path in data_paths.items()}
     
     DR_Model = BertForMultipleChoice.from_pretrained(args.ckpt_DR_dir).to(device)
-    tokenizer = BertTokenizerFast.from_pretrained("bert-base-chinese")
+    tokenizer = BertTokenizerFast.from_pretrained("bert-base-uncased")
     
     context_tokenized = tokenizer(contexts, add_special_tokens=False)
     test_questions_tokenized = tokenizer([test_question["question"] for test_question in data[TEST]], add_special_tokens=False)
@@ -41,6 +43,9 @@ def main(args):
 
     DR_Model.eval()
     print(args.ranked_list)
+    with open("../dataset/model/error_doc.pk", 'rb') as f:
+        unpickler = pickle.Unpickler(f)
+        error_doc = unpickler.load()
     with torch.no_grad():
         id, predictions = list(), list()
         prev_id = ""
@@ -51,14 +56,14 @@ def main(args):
             cur_id = datas[3][0]
             if cur_id != prev_id:
                 if prev_id != "":
-                    prob, relevant_documents = torch.topk(rank, k=120, dim=1)
+                    prob, relevant_documents = torch.topk(rank, k=200, dim=1)
                     # print(prob)
                     # print(relevant_documents)
                     # print(prob.shape, relevant_documents.shape)
                     id.append(prev_id)
                     relevant_documents = torch.reshape((relevant_documents), (-1,))
                     relevant_documents = relevant_documents.detach().tolist()
-                    relevant_documents[:] = [rel for rel in relevant_documents if rel < len(label2file)]
+                    relevant_documents[:] = [rel for rel in relevant_documents if rel not in error_doc]
                     prediction = [label2file[str(label)] for label in relevant_documents]
                     print("question:", data[TEST][i-1]["question"][:64])
                     for j in range(5):
@@ -71,6 +76,7 @@ def main(args):
                 prev_id = cur_id
             else:
                 rank = torch.cat((rank, output.logits), dim=1)
+                # print(rank.shape)
         # for last query
         _, relevant_documents = torch.topk(rank, k=120, dim=1)
         id.append(prev_id)
@@ -87,6 +93,8 @@ def main(args):
         for i, prediction in enumerate(predictions):
             f.write("{},{}\n".format(id[i], " ".join(prediction)))
     print(f"Completed! Result is in {args.ranked_list}")
+    eval(predictions, args.ground_truth, len(id))
+
 
 
 def parse_args() -> Namespace:
@@ -112,6 +120,7 @@ def parse_args() -> Namespace:
         type=Path,
         help="Prediction file",
     )
+    parser.add_argument("-g", type=Path, default="../dataset/partial/test/new_topK.csv", dest="ground_truth")
 
 
     args = parser.parse_args()
